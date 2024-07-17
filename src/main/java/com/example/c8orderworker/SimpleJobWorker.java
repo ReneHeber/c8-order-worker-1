@@ -1,5 +1,6 @@
 package com.example.c8orderworker;
 
+import com.example.c8orderworker.handler.OrderHandler;
 import io.camunda.zeebe.client.ZeebeClient;
 import io.camunda.zeebe.client.api.worker.JobClient;
 import io.camunda.zeebe.client.api.worker.JobHandler;
@@ -26,10 +27,10 @@ public class SimpleJobWorker {
     private static String ZEEBE_GRPC_ADDRESS;
 
     // Job
-    private static final String JOB_TYPE = "trackOrderStatus";
+    private static final String JOB_TYPE = "trackOrderStatus";;
 
     public static void main(String[] args) {
-        // Verbindung zum Zeebe-Broker herstellen
+        // Establish a connection to the Zeebe broker
         loadProperties();
 
         final OAuthCredentialsProvider credentialsProvider = new OAuthCredentialsProviderBuilder()
@@ -40,33 +41,55 @@ public class SimpleJobWorker {
                 .build();
 
         try {
-            // Verbindung zum Zeebe-Broker herstellen
+            // Establish a connection to the Zeebe broker
             ZeebeClient client = ZeebeClient.newClientBuilder()
                     .gatewayAddress(ZEEBE_ADDRESS)
                     .credentialsProvider(credentialsProvider)
                     .usePlaintext() // Use plaintext for communication (recommended for testing purposes only)
                     .build();
 
+            // DAS HIER SCHMIERT AB
             client.newTopologyRequest().send().join();
             System.out.println("Connected to: " + client.newTopologyRequest().send().join());
+
+
+            // Register Job Worker who does nothing
+/*            client.newWorker()
+                    .jobType(JOB_TYPE)
+                    .handler((jobClient, job) -> {
+                        System.out.println("Bearbeite Aufgabe mit ID: " + job.getKey());
+                        // Hier wird nichts gemacht
+                        jobClient.newCompleteCommand(job.getKey()).send().join();
+                    })
+                    .open();*/
 
             // Start a Job Worker
             System.out.println("Opening job worker.");
             JobWorker worker = client.newWorker()
                     .jobType(JOB_TYPE)
-                    .handler(new SampleJobHandler())
-                    .timeout(Duration.ofSeconds(10000))
+                    .handler(new OrderHandler())
+                    .timeout(Duration.ofSeconds(3000))
                     .open();
 
             System.out.println("Job worker opened and receiving jobs.");
 
-            // Worker laufen lassen, bis das Programm beendet wird
+/*            // Let the worker run until the program is terminated
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println("Worker wird heruntergefahren...");
                 worker.close();
                 client.close();
                 System.out.println("Worker heruntergefahren.");
-            }));
+            }));*/
+
+            // Waiting to maintain the connection
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            // Close client when the program is terminated
+            client.close();
 
         } catch (Exception e) {
             System.out.println("Fehler beim Herstellen der Verbindung zum Broker: " + e.getMessage());

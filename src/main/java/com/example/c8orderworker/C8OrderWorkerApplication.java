@@ -58,20 +58,27 @@ public class C8OrderWorkerApplication {
             final JobWorker downloadPictureWorker = client.newWorker()
                     .jobType(JOB_TYPE)
                     .handler(new OrderHandler())
-                    .timeout(Duration.ofSeconds(10000))
+                    .timeout(Duration.ofSeconds(3000))
                     .open();
 
             System.out.println("Job worker opened and receiving jobs.");
 
-            // run until System.in receives exit command
-            waitUntilSystemInput("exit");
+            // Waiting to maintain the connection
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
 
+            // Close client when the program is terminated
+            client.close();
+
+            // run until System.in receives exit command
+            // waitUntilSystemInput("exit");
 
         } catch (Exception e) {
             e.printStackTrace();
-
         }
-
     }
 
     private static void loadProperties() {
